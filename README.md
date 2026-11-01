@@ -1,0 +1,64 @@
+# acp-voice
+
+Hear your coding agent while you look at something else.
+
+`acp-voice` wraps any [Agent Client Protocol](https://agentclientprotocol.com) agent. It passes every message between your editor and the agent through unchanged, and reads the agent's chat text aloud: no diffs, no tool calls, no code blocks.
+
+## Use
+
+Put `acp-voice --` in front of the agent command in your editor's config. For Zed:
+
+```json
+{
+  "agent_servers": {
+    "Claude Code (voice)": {
+      "command": "npx",
+      "args": ["-y", "acp-voice", "--", "npx", "-y", "@zed-industries/claude-code-acp"]
+    }
+  }
+}
+```
+
+The same pattern works for any ACP client and agent.
+
+## Configure
+
+Optional. Create `~/.config/acp-voice/config.json`, or point `ACP_VOICE_CONFIG` at a file elsewhere:
+
+```json
+{
+  "speak": ["agent_message"],
+  "tts": "say -r 210",
+  "skip_code_blocks": true,
+  "max_chars": 400,
+  "interrupt_on_new_prompt": true
+}
+```
+
+| Key | Default | Meaning |
+|---|---|---|
+| `speak` | `["agent_message"]` | Which updates to read. Add `"agent_thought"` to hear the agent's reasoning too. |
+| `tts` | `say` (macOS), `espeak --stdin` (Linux) | Shell command that receives each sentence on stdin. |
+| `skip_code_blocks` | `true` | Don't read fenced code. |
+| `max_chars` | `400` | Stop talking after this many characters per turn. |
+| `interrupt_on_new_prompt` | `true` | Go quiet when you send a new message or cancel. |
+
+### TTS examples
+
+Any command that reads text from stdin works:
+
+- macOS: `say -v Samantha -r 200`
+- Linux: `espeak --stdin`, or [Piper](https://github.com/rhasspy/piper): `piper --model en_US-amy-medium.onnx --output-raw | aplay -r 22050 -f S16_LE -t raw -`
+- Cloud: wrap your provider's CLI in a small script that reads stdin and plays the audio.
+
+## Develop
+
+```sh
+npm test
+```
+
+No dependencies. All the code is in `acp-voice.js`.
+
+## License
+
+MIT

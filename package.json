@@ -1,0 +1,12 @@
+{
+  "name": "acp-voice",
+  "version": "0.1.0",
+  "description": "Hear your ACP coding agent talk while you work: a stdio proxy that speaks agent messages through any TTS command.",
+  "type": "module",
+  "bin": { "acp-voice": "acp-voice.js" },
+  "files": ["acp-voice.js"],
+  "scripts": { "test": "node test.mjs" },
+  "keywords": ["acp", "agent-client-protocol", "tts", "text-to-speech", "claude-code", "zed"],
+  "engines": { "node": ">=18" },
+  "license": "MIT"
+}
