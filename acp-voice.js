@@ -50,7 +50,7 @@ function createSpeaker(cfg, say) {
   let buf = '', inCode = false, spoken = 0
   const emit = (s) => {
     s = s.replace(/[`*_#>]/g, '').replace(/\s+/g, ' ').trim()
-    if (!s || spoken >= cfg.max_chars) return
+    if (!/\w/.test(s) || spoken >= cfg.max_chars) return // \w: skip empty and --- rules
     spoken += s.length
     say(s)
   }

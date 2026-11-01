@@ -13,13 +13,23 @@ Put `acp-voice --` in front of the agent command in your editor's config. For Ze
   "agent_servers": {
     "Claude Code (voice)": {
       "command": "npx",
-      "args": ["-y", "acp-voice", "--", "npx", "-y", "@zed-industries/claude-code-acp"]
+      "args": ["-y", "acp-voice", "--", "npx", "-y", "@agentclientprotocol/claude-agent-acp"]
     }
   }
 }
 ```
 
 The same pattern works for any ACP client and agent.
+
+### Try it without an editor
+
+`demo.mjs` is a tiny ACP client. It sends one prompt to Claude through acp-voice, prints the reply and speaks it:
+
+```sh
+node demo.mjs "Explain what a monad is in two sentences."
+```
+
+It denies any tool permission requests. To try a different agent, add `-- <agent command>`.
 
 ## Configure
 

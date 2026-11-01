@@ -17,7 +17,7 @@ const agentOutput = [
   update('agent_message_chunk', 'Hel'),
   update('agent_message_chunk', 'lo **there**. Here is `code`:\n``'),
   update('agent_message_chunk', '`js\nconst x = 1.\n``'),
-  update('agent_message_chunk', '`\nDone'),
+  update('agent_message_chunk', '`\n---\nDone'),
   JSON.stringify({ jsonrpc: '2.0', method: 'session/update', params: { sessionId: 's', update: { sessionUpdate: 'tool_call', title: 'Edit file' } } }),
   JSON.stringify({ jsonrpc: '2.0', id: 1, result: { stopReason: 'end_turn' } }),
 ].join('\n') + '\n'
