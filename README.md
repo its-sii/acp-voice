@@ -74,6 +74,7 @@ Any command that reads text from stdin works:
 
 - macOS: `say -v Samantha -r 200`
 - Linux: `espeak --stdin`, or [Piper](https://github.com/rhasspy/piper): `piper --model en_US-amy-medium.onnx --output-raw | aplay -r 22050 -f S16_LE -t raw -`
+- [Kokoro](https://github.com/thewh1teagle/kokoro-onnx), a natural-sounding local neural voice: see [`tts/kokoro.py`](tts/kokoro.py) for setup. It works best with the Claude Code hook. With the proxy, each sentence reloads the model, which takes a few seconds.
 - Cloud: wrap your provider's CLI in a small script that reads stdin and plays the audio.
 
 ## Develop
