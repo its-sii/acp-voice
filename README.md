@@ -64,7 +64,7 @@ Optional. Create `~/.config/acp-voice/config.json`, or point `ACP_VOICE_CONFIG` 
 
 | Key | Default | Meaning |
 |---|---|---|
-| `speak` | `["tool_calls"]` | What to read. `"tool_calls"`: step summaries like "Ran 2 commands, edited 1 file." `"tool_titles"`: one line per step instead, like "Read package.json." or the command's description (raise `max_chars` for long turns). `"agent_message"`: the agent's chat text (in the hook, just the final reply unless `"tool_calls"` is also on). `"agent_thought"`: its reasoning (proxy only). |
+| `speak` | `["tool_calls"]` | What to read. `"tool_calls"`: step summaries like "Ran 2 commands, edited 1 file." `"tool_titles"`: one line per step instead, like "Read package.json." or the command's description (raise `max_chars` for long turns). `"agent_message"`: the agent's chat text (in the hook, just the final reply unless `"tool_calls"` is also on). `"agent_thought"`: its reasoning (proxy only). `"recap"`: the short end-of-turn recap the Claude desktop app's Code tab has Claude write (hook only). |
 | `tts` | `say` (macOS), `espeak --stdin` (Linux) | Shell command that receives each sentence on stdin. |
 | `skip_code_blocks` | `true` | Don't read fenced code. |
 | `max_chars` | `400` | Stop talking after this many characters per turn. |

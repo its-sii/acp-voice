@@ -47,6 +47,10 @@ writeFileSync(transcript, [
   entry('user', [{ type: 'tool_result', tool_use_id: 't', content: 'ok' }]),
   entry('assistant', [{ type: 'text', text: 'Subagent noise.' }], { isSidechain: true }),
   entry('assistant', [{ type: 'thinking', thinking: 'hmm' }]),
+  entry('assistant', [{ type: 'tool_use', id: 'u1', name: 'mcp__ccd_turn__wrap_up', input: { recap: 'Rejected recap.' } }]),
+  entry('user', [{ type: 'tool_result', tool_use_id: 'u1', content: 'error' }]),
+  entry('assistant', [{ type: 'tool_use', id: 'u2', name: 'mcp__ccd_turn__wrap_up', input: { recap: 'Tests **pass**.' } }]),
+  entry('user', [{ type: 'tool_result', tool_use_id: 'u2', content: 'ok' }]),
   entry('assistant', [{ type: 'text', text: 'All **done**.\n```sh\nnpm test\n```\nBye' }]),
 ].join('\n') + '\n')
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
@@ -67,6 +71,7 @@ assert.equal(await runHook(undefined, 'default.txt'), 'Ran 1 command, read 1 fil
 assert.equal(await runHook(['agent_message'], 'reply.txt'), 'All done. Bye')
 assert.equal(await runHook(['agent_message', 'tool_calls'], 'both.txt'), 'Checking. Ran 1 command, read 1 file. All done. Bye')
 assert.equal(await runHook(['tool_titles'], 'titles.txt'), 'List files. Read package.json.')
+assert.equal(await runHook(['recap'], 'recap.txt'), 'Tests pass.')
 
 // Live steps: PreToolUse lines play in order without overlapping (slow TTS, so later ones get batched),
 // then Stop adds only the final reply instead of repeating the steps.

@@ -139,7 +139,7 @@ function onMessages(stream, fn) {
   })
 }
 
-// Text blocks ({text}) and tool calls ({kind, title}) of the current turn: everything after the last typed prompt.
+// Text blocks ({text}), tool calls ({kind, title}) and desktop app wrap-up recaps ({recap}) of the current turn: everything after the last typed prompt.
 // ponytail: rereads the whole transcript each turn, tail-read it if long sessions get slow
 function lastTurn(transcriptPath) {
   let events = []
@@ -153,6 +153,7 @@ function lastTurn(transcriptPath) {
     } else if (m.type === 'assistant' && Array.isArray(c)) {
       for (const b of c) {
         if (b.type === 'text') events.push({ text: b.text })
+        else if (b.type === 'tool_use' && /__wrap_up$/.test(b.name) && b.input?.recap) events.push({ recap: b.input.recap })
         else if (b.type === 'tool_use' && !SILENT_TOOLS.test(b.name)) events.push({ kind: CLAUDE_TOOL_KINDS[b.name] ?? 'other', title: claudeTitle(b) })
       }
     }
@@ -160,8 +161,8 @@ function lastTurn(transcriptPath) {
   return events
 }
 
-// Claude Code hook. PreToolUse speaks each step as it starts; Stop speaks the final reply, plus the turn's
-// steps if PreToolUse isn't hooked up; UserPromptSubmit silences everything queued.
+// Claude Code hook. PreToolUse speaks each step as it starts; Stop speaks the final reply and wrap-up recap,
+// plus the turn's steps if PreToolUse isn't hooked up; UserPromptSubmit silences everything queued.
 // Speech goes through a spool file that one detached drainer reads, so the hook returns at once and
 // a burst of steps becomes one TTS run (one model load for slow voices like Kokoro).
 const SPOOL = join(tmpdir(), 'acp-voice-hook.spool')
@@ -194,10 +195,12 @@ function hook(cfg) {
     const turnTools = anyTools && !live
     const events = lastTurn(input.transcript_path)
     const lastTool = events.findLastIndex((e) => e.kind)
+    const lastRecap = events.findLastIndex((e) => e.recap) // a failed wrap-up gets retried, speak only the last
     let group = []
     const flushGroup = () => { if (group.length) speaker.feed(summarize(group) + '\n'); group = [] }
     events.forEach((e, i) => {
-      if (e.kind) { if (titles) speaker.feed(sentence(e.title)); else if (turnTools) group.push(e.kind) }
+      if (e.recap) { if (speak.has('recap') && i === lastRecap) { flushGroup(); speaker.feed(e.recap + '\n') } }
+      else if (e.kind) { if (titles) speaker.feed(sentence(e.title)); else if (turnTools) group.push(e.kind) }
       // messages alone: just the final reply; with tool calls: the whole turn in order
       else if (speak.has('agent_message') && (turnTools || i > lastTool)) { flushGroup(); speaker.feed(e.text + '\n') }
     })
