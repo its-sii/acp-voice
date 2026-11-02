@@ -2,7 +2,7 @@
 
 Hear your coding agent while you look at something else.
 
-`acp-voice` wraps any [Agent Client Protocol](https://agentclientprotocol.com) agent. It passes every message between your editor and the agent through unchanged, and reads the agent's chat text aloud: no diffs, no tool calls, no code blocks.
+`acp-voice` wraps any [Agent Client Protocol](https://agentclientprotocol.com) agent. It passes every message between your editor and the agent through unchanged, and narrates what the agent is doing, in the style of the step lines agent UIs print: "Ran 2 commands, read 3 files." It can read the agent's chat text aloud too, without code blocks.
 
 ## Use
 
@@ -33,7 +33,7 @@ It denies any tool permission requests. To try a different agent, add `-- <agent
 
 ## Claude Code (CLI, desktop app, IDE extensions)
 
-Claude Code doesn't need ACP. `acp-voice hook` uses its [hooks](https://docs.claude.com/en/docs/claude-code/hooks) instead: when Claude finishes a turn, it speaks the final reply. When you send a new message, it stops talking. Add this to `~/.claude/settings.json`:
+Claude Code doesn't need ACP. `acp-voice hook` uses its [hooks](https://docs.claude.com/en/docs/claude-code/hooks) instead: when Claude finishes a turn, it speaks that turn's steps (or the final reply, if configured). When you send a new message, it stops talking. Add this to `~/.claude/settings.json`:
 
 ```json
 {
@@ -44,7 +44,9 @@ Claude Code doesn't need ACP. `acp-voice hook` uses its [hooks](https://docs.cla
 }
 ```
 
-It uses the same config as the proxy. The difference is timing: the proxy speaks while the agent streams its reply, and the hook speaks once the reply is finished.
+To hear each step as it starts instead of all at once at the end, also add a `PreToolUse` hook with the same command. Stop then speaks only the final reply, if `agent_message` is on. Steps that come in quick succession are queued and spoken in one TTS run, so a slow voice falls behind less.
+
+It uses the same config as the proxy. The difference is timing: the proxy speaks while the agent works, and the hook speaks once the turn is finished.
 
 ## Configure
 
@@ -52,7 +54,7 @@ Optional. Create `~/.config/acp-voice/config.json`, or point `ACP_VOICE_CONFIG` 
 
 ```json
 {
-  "speak": ["agent_message"],
+  "speak": ["tool_calls"],
   "tts": "say -r 210",
   "skip_code_blocks": true,
   "max_chars": 400,
@@ -62,7 +64,7 @@ Optional. Create `~/.config/acp-voice/config.json`, or point `ACP_VOICE_CONFIG` 
 
 | Key | Default | Meaning |
 |---|---|---|
-| `speak` | `["agent_message"]` | Which updates to read. Add `"agent_thought"` to hear the agent's reasoning too. |
+| `speak` | `["tool_calls"]` | What to read. `"tool_calls"`: step summaries like "Ran 2 commands, edited 1 file." `"tool_titles"`: one line per step instead, like "Read package.json." or the command's description (raise `max_chars` for long turns). `"agent_message"`: the agent's chat text (in the hook, just the final reply unless `"tool_calls"` is also on). `"agent_thought"`: its reasoning (proxy only). |
 | `tts` | `say` (macOS), `espeak --stdin` (Linux) | Shell command that receives each sentence on stdin. |
 | `skip_code_blocks` | `true` | Don't read fenced code. |
 | `max_chars` | `400` | Stop talking after this many characters per turn. |
