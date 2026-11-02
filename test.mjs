@@ -33,4 +33,26 @@ const out = execFileSync('node', ['acp-voice.js', '--', 'node', '-e', fakeAgent]
 
 assert.equal(out, agentOutput, 'agent stdout must pass through byte-for-byte')
 assert.deepEqual(readFileSync(spoken, 'utf8').trim().split('\n'), ['Hello there.', 'Here is code:', 'Done'])
+
+// Hook mode: only the reply after the last user/tool-result entry is spoken, in one detached TTS run.
+const hookSpoken = join(dir, 'hook.txt')
+writeFileSync(config, JSON.stringify({ tts: `cat > '${hookSpoken}'` }))
+const entry = (type, content, extra = {}) => JSON.stringify({ type, message: { role: type, content }, ...extra })
+const transcript = join(dir, 'transcript.jsonl')
+writeFileSync(transcript, [
+  entry('user', 'first question'),
+  entry('assistant', [{ type: 'text', text: 'Old reply.' }]),
+  entry('user', 'second question'),
+  entry('assistant', [{ type: 'text', text: 'Checking.' }, { type: 'tool_use', id: 't', name: 'Bash', input: {} }]),
+  entry('user', [{ type: 'tool_result', tool_use_id: 't', content: 'ok' }]),
+  entry('assistant', [{ type: 'text', text: 'Subagent noise.' }], { isSidechain: true }),
+  entry('assistant', [{ type: 'thinking', thinking: 'hmm' }]),
+  entry('assistant', [{ type: 'text', text: 'All **done**.\n```sh\nnpm test\n```\nBye' }]),
+].join('\n') + '\n')
+execFileSync('node', ['acp-voice.js', 'hook'], {
+  input: JSON.stringify({ hook_event_name: 'Stop', transcript_path: transcript }),
+  env: { ...process.env, ACP_VOICE_CONFIG: config, TMPDIR: dir },
+})
+for (let i = 0; i < 50 && !readFileSync(hookSpoken, { flag: 'a+' }).length; i++) await new Promise((r) => setTimeout(r, 20))
+assert.equal(readFileSync(hookSpoken, 'utf8'), 'All done. Bye')
 console.log('ok')

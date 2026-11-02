@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 // acp-voice: sits between an ACP client and agent, passes stdio through untouched,
 // and reads the agent's chat text aloud through any stdin-reading TTS command.
+// `acp-voice hook` does the same for Claude Code via Stop/UserPromptSubmit hooks.
 import { spawn } from 'node:child_process'
-import { readFileSync } from 'node:fs'
-import { homedir } from 'node:os'
+import { readFileSync, writeFileSync } from 'node:fs'
+import { homedir, tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { StringDecoder } from 'node:string_decoder'
 
@@ -91,45 +92,91 @@ function onMessages(stream, fn) {
   })
 }
 
-const sep = process.argv.indexOf('--')
-const [cmd, ...args] = process.argv.slice(sep < 0 ? 2 : sep + 1)
-if (!cmd) {
-  console.error('usage: acp-voice -- <agent command> [args...]')
-  process.exit(2)
+// Text blocks of the last assistant reply: everything after the final user/tool-result entry.
+// ponytail: rereads the whole transcript each turn, tail-read it if long sessions get slow
+function lastReply(transcriptPath) {
+  let texts = []
+  for (const line of readFileSync(transcriptPath, 'utf8').split('\n')) {
+    let m
+    try { m = JSON.parse(line) } catch { continue }
+    if (m.isSidechain || !m.message) continue
+    if (m.type === 'user') texts = []
+    else if (m.type === 'assistant' && Array.isArray(m.message.content)) {
+      for (const b of m.message.content) if (b.type === 'text') texts.push(b.text)
+    }
+  }
+  return texts.join('\n')
+}
+
+// Claude Code hook: Stop speaks the reply in a detached TTS process so the hook returns at once;
+// UserPromptSubmit (and any new Stop) silences the previous one.
+function hook(cfg) {
+  const input = JSON.parse(readFileSync(0, 'utf8'))
+  const pidFile = join(tmpdir(), 'acp-voice-hook.pid')
+  const isStop = input.hook_event_name === 'Stop'
+  if (isStop || cfg.interrupt_on_new_prompt) {
+    // ponytail: pid file can go stale, a reused pid would get SIGTERM; track start time if that ever bites
+    try { process.kill(-Number(readFileSync(pidFile, 'utf8')), 'SIGTERM') } catch {}
+  }
+  if (!isStop) return
+  const parts = []
+  const speaker = createSpeaker(cfg, (s) => parts.push(s))
+  speaker.feed(lastReply(input.transcript_path))
+  speaker.flush()
+  if (!parts.length) return
+  const tts = spawn(cfg.tts, { shell: true, detached: true, stdio: ['pipe', 'ignore', 'ignore'] })
+  tts.stdin.end(parts.join(' '))
+  writeFileSync(pidFile, String(tts.pid))
+  tts.unref()
 }
 
 const cfg = loadConfig()
-const kinds = new Set(cfg.speak.map((k) => KINDS[k] ?? k))
-const voice = createVoice(cfg.tts)
-const speaker = createSpeaker(cfg, voice.say)
-let idle
+if (process.argv[2] === 'hook') {
+  hook(cfg)
+} else {
+  proxy(cfg)
+}
 
-const agent = spawn(cmd, args, { stdio: ['pipe', 'pipe', 'inherit'] })
-agent.on('error', (e) => { console.error(`acp-voice: cannot start ${cmd}: ${e.message}`); process.exit(1) })
-agent.stdin.on('error', () => {})
-process.stdin.pipe(agent.stdin)
-agent.stdout.pipe(process.stdout)
+function proxy(cfg) {
+  const sep = process.argv.indexOf('--')
+  const [cmd, ...args] = process.argv.slice(sep < 0 ? 2 : sep + 1)
+  if (!cmd) {
+    console.error('usage: acp-voice -- <agent command> [args...]\n       acp-voice hook   (Claude Code Stop/UserPromptSubmit hook)')
+    process.exit(2)
+  }
 
-onMessages(process.stdin, (msg) => {
-  if (msg.method !== 'session/prompt' && msg.method !== 'session/cancel') return
-  if (cfg.interrupt_on_new_prompt) voice.stop()
-  speaker.reset()
-})
+  const kinds = new Set(cfg.speak.map((k) => KINDS[k] ?? k))
+  const voice = createVoice(cfg.tts)
+  const speaker = createSpeaker(cfg, voice.say)
+  let idle
 
-onMessages(agent.stdout, (msg) => {
-  const u = msg.method === 'session/update' && msg.params?.update
-  if (!u || !kinds.has(u.sessionUpdate) || u.content?.type !== 'text') return
-  speaker.feed(u.content.text)
-  clearTimeout(idle)
-  idle = setTimeout(speaker.flush, IDLE_FLUSH_MS)
-})
+  const agent = spawn(cmd, args, { stdio: ['pipe', 'pipe', 'inherit'] })
+  agent.on('error', (e) => { console.error(`acp-voice: cannot start ${cmd}: ${e.message}`); process.exit(1) })
+  agent.stdin.on('error', () => {})
+  process.stdin.pipe(agent.stdin)
+  agent.stdout.pipe(process.stdout)
 
-agent.on('exit', (code, signal) => {
-  clearTimeout(idle)
-  speaker.flush()
-  process.stdin.destroy()
-  process.exitCode = code ?? (signal ? 1 : 0)
-  // node exits once queued speech finishes
-})
+  onMessages(process.stdin, (msg) => {
+    if (msg.method !== 'session/prompt' && msg.method !== 'session/cancel') return
+    if (cfg.interrupt_on_new_prompt) voice.stop()
+    speaker.reset()
+  })
 
-for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => { voice.stop(); agent.kill(sig) })
+  onMessages(agent.stdout, (msg) => {
+    const u = msg.method === 'session/update' && msg.params?.update
+    if (!u || !kinds.has(u.sessionUpdate) || u.content?.type !== 'text') return
+    speaker.feed(u.content.text)
+    clearTimeout(idle)
+    idle = setTimeout(speaker.flush, IDLE_FLUSH_MS)
+  })
+
+  agent.on('exit', (code, signal) => {
+    clearTimeout(idle)
+    speaker.flush()
+    process.stdin.destroy()
+    process.exitCode = code ?? (signal ? 1 : 0)
+    // node exits once queued speech finishes
+  })
+
+  for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => { voice.stop(); agent.kill(sig) })
+}

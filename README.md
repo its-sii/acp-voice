@@ -31,6 +31,21 @@ node demo.mjs "Explain what a monad is in two sentences."
 
 It denies any tool permission requests. To try a different agent, add `-- <agent command>`.
 
+## Claude Code (CLI, desktop app, IDE extensions)
+
+Claude Code doesn't need ACP. `acp-voice hook` uses its [hooks](https://docs.claude.com/en/docs/claude-code/hooks) instead: when Claude finishes a turn, it speaks the final reply. When you send a new message, it stops talking. Add this to `~/.claude/settings.json`:
+
+```json
+{
+  "hooks": {
+    "Stop": [{ "hooks": [{ "type": "command", "command": "npx -y acp-voice hook" }] }],
+    "UserPromptSubmit": [{ "hooks": [{ "type": "command", "command": "npx -y acp-voice hook" }] }]
+  }
+}
+```
+
+It uses the same config as the proxy. The difference is timing: the proxy speaks while the agent streams its reply, and the hook speaks once the reply is finished.
+
 ## Configure
 
 Optional. Create `~/.config/acp-voice/config.json`, or point `ACP_VOICE_CONFIG` at a file elsewhere:
