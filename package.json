@@ -4,8 +4,11 @@
   "description": "Hear what your ACP coding agent is doing while you work: a stdio proxy that speaks its steps and messages through any TTS command.",
   "type": "module",
   "bin": { "acp-voice": "acp-voice.js" },
-  "files": ["acp-voice.js"],
-  "scripts": { "test": "node test.mjs" },
+  "files": ["acp-voice.js", "tts/"],
+  "scripts": { "test": "node test.mjs", "prepublishOnly": "npm test" },
+  "repository": { "type": "git", "url": "git+https://github.com/its-sii/acp-voice.git" },
+  "homepage": "https://github.com/its-sii/acp-voice#readme",
+  "bugs": "https://github.com/its-sii/acp-voice/issues",
   "keywords": ["acp", "agent-client-protocol", "tts", "text-to-speech", "claude-code", "zed"],
   "engines": { "node": ">=18" },
   "license": "MIT"
