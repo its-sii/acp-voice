@@ -1,6 +1,6 @@
 {
   "name": "acp-voice",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Hear what your ACP coding agent is doing while you work: a stdio proxy that speaks its steps and messages through any TTS command.",
   "type": "module",
   "bin": { "acp-voice": "acp-voice.js" },

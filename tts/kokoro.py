@@ -1,14 +1,9 @@
 #!/usr/bin/env python3
 """Speak stdin with Kokoro (local neural TTS). Use as acp-voice's `tts` command.
 
-Setup (once):
-  uv venv --python 3.12 ~/.local/share/acp-voice/kokoro/venv
-  uv pip install --python ~/.local/share/acp-voice/kokoro/venv/bin/python kokoro-onnx
-  download kokoro-v1.0.onnx and voices-v1.0.bin from
-  https://github.com/thewh1teagle/kokoro-onnx/releases/tag/model-files-v1.0
-  into ~/.local/share/acp-voice/kokoro (or set KOKORO_DIR)
-
-Then: "tts": "~/.local/share/acp-voice/kokoro/venv/bin/python /path/to/tts/kokoro.py --voice af_heart"
+Set up and run it through acp-voice, which knows where everything lives:
+  npx -y acp-voice setup kokoro:af_heart
+  (saves "voice": "kokoro:af_heart" to the config)
 """
 import argparse, os, signal, subprocess, sys, tempfile, wave
 
@@ -25,8 +20,13 @@ text = sys.stdin.read().strip()
 if not text:
     sys.exit(0)
 
-# acp-voice interrupts with SIGTERM; exit through `finally` so the temp file is removed
-signal.signal(signal.SIGTERM, lambda *_: sys.exit(143))
+# acp-voice interrupts with SIGTERM: stop the player too, and exit through `finally` so the temp file is removed
+player = None
+def stop(*_):
+    if player:
+        player.terminate()
+    sys.exit(143)
+signal.signal(signal.SIGTERM, stop)
 
 model_dir = os.path.expanduser(os.environ.get('KOKORO_DIR', '~/.local/share/acp-voice/kokoro'))
 kokoro = Kokoro(os.path.join(model_dir, 'kokoro-v1.0.onnx'), os.path.join(model_dir, 'voices-v1.0.bin'))
@@ -39,6 +39,7 @@ try:
         w.setsampwidth(2)
         w.setframerate(rate)
         w.writeframes((np.clip(samples, -1, 1) * 32767).astype(np.int16).tobytes())
-    subprocess.run(['afplay', path] if sys.platform == 'darwin' else ['aplay', '-q', path])
+    player = subprocess.Popen(['afplay', path] if sys.platform == 'darwin' else ['aplay', '-q', path])
+    player.wait()
 finally:
     os.remove(path)

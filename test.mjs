@@ -93,4 +93,11 @@ hookEvent({ hook_event_name: 'PreToolUse', tool_name: 'Read', tool_input: { file
 hookEvent({ hook_event_name: 'UserPromptSubmit' })
 await sleep(800)
 assert.ok(!readFileSync(live, 'utf8').includes('late'), 'interrupted speech must not play')
+
+// Setup (non-interactive, so silent): saves the voice, keeps other keys, drops a custom tts.
+const setup = (voice) => execFileSync('node', ['acp-voice.js', 'setup', voice], { input: '', env: { ...process.env, ACP_VOICE_CONFIG: config }, stdio: 'pipe' })
+writeFileSync(config, JSON.stringify({ speak: ['recap'], tts: 'old' }))
+setup('say:Ava (Premium)')
+assert.deepEqual(JSON.parse(readFileSync(config, 'utf8')), { speak: ['recap'], voice: 'say:Ava (Premium)' })
+assert.throws(() => setup('banjo'), /unknown voice/)
 console.log('ok')

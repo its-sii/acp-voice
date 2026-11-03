@@ -4,7 +4,15 @@ Hear your coding agent while you look at something else.
 
 `acp-voice` wraps any [Agent Client Protocol](https://agentclientprotocol.com) agent. It passes every message between your editor and the agent through unchanged, and narrates what the agent is doing, in the style of the step lines agent UIs print: "Ran 2 commands, read 3 files." It can read the agent's chat text aloud too, without code blocks.
 
-## Use
+## Quick start
+
+```sh
+npx -y acp-voice setup
+```
+
+This shows a list of voices to pick from, installs the one you choose (Kokoro is set up for you), plays a sample and saves your choice. It then offers to add the Claude Code hooks for you. You can also skip the list by naming a voice, for example `npx -y acp-voice setup kokoro:bf_emma` or `npx -y acp-voice setup say`.
+
+## ACP editors (Zed and others)
 
 Put `acp-voice --` in front of the agent command in your editor's config. For Zed:
 
@@ -33,7 +41,7 @@ It denies any tool permission requests. To try a different agent, add `-- <agent
 
 ## Claude Code (CLI, desktop app, IDE extensions)
 
-Claude Code doesn't need ACP. `acp-voice hook` uses its [hooks](https://docs.claude.com/en/docs/claude-code/hooks) instead: when Claude finishes a turn, it speaks that turn's steps (or the final reply, if configured). When you send a new message, it stops talking. Add this to `~/.claude/settings.json`:
+Claude Code doesn't need ACP. `acp-voice hook` uses its [hooks](https://docs.claude.com/en/docs/claude-code/hooks) instead: when Claude finishes a turn, it speaks that turn's steps (or the final reply, if configured). When you send a new message, it stops talking. `acp-voice setup` can add the hooks for you, or add them to `~/.claude/settings.json` yourself:
 
 ```json
 {
@@ -55,7 +63,7 @@ Optional. Create `~/.config/acp-voice/config.json`, or point `ACP_VOICE_CONFIG` 
 ```json
 {
   "speak": ["tool_calls"],
-  "tts": "say -r 210",
+  "voice": "kokoro:af_heart",
   "skip_code_blocks": true,
   "max_chars": 400,
   "interrupt_on_new_prompt": true
@@ -65,19 +73,17 @@ Optional. Create `~/.config/acp-voice/config.json`, or point `ACP_VOICE_CONFIG` 
 | Key | Default | Meaning |
 |---|---|---|
 | `speak` | `["tool_calls"]` | What to read. `"tool_calls"`: step summaries like "Ran 2 commands, edited 1 file." `"tool_titles"`: one line per step instead, like "Read package.json." or the command's description (raise `max_chars` for long turns). `"agent_message"`: the agent's chat text (in the hook, just the final reply unless `"tool_calls"` is also on). `"agent_thought"`: its reasoning (proxy only). `"recap"`: the short end-of-turn recap the Claude desktop app's Code tab has Claude write (hook only). |
-| `tts` | `say` (macOS), `espeak --stdin` (Linux) | Shell command that receives each sentence on stdin. |
+| `voice` | none | `say`, `espeak` or `kokoro`, optionally followed by `:<voice name>`, for example `say:Ava (Premium)` or `kokoro:am_michael`. Kokoro voices: `af_heart`, `af_bella`, `af_nicole`, `am_michael`, `am_adam`, `bf_emma`, `bm_george`. Set by `acp-voice setup`. |
+| `tts` | `say` (macOS), `espeak --stdin` (Linux) | Any shell command that reads text on stdin. Overrides `voice`. Use it for engines acp-voice doesn't know about. |
 | `skip_code_blocks` | `true` | Don't read fenced code. |
 | `max_chars` | `400` | Stop talking after this many characters per turn. |
 | `interrupt_on_new_prompt` | `true` | Go quiet when you send a new message or cancel. |
 
-### TTS examples
+### Voices
 
-Any command that reads text from stdin works:
-
-- macOS: `say -v Samantha -r 200`
-- Linux: `espeak --stdin`, or [Piper](https://github.com/rhasspy/piper): `piper --model en_US-amy-medium.onnx --output-raw | aplay -r 22050 -f S16_LE -t raw -`
-- [Kokoro](https://github.com/thewh1teagle/kokoro-onnx), a natural-sounding local neural voice: see [`tts/kokoro.py`](tts/kokoro.py) for setup. It works best with the Claude Code hook. With the proxy, each sentence reloads the model, which takes a few seconds.
-- Cloud: wrap your provider's CLI in a small script that reads stdin and plays the audio.
+- **[Kokoro](https://github.com/thewh1teagle/kokoro-onnx)** sounds natural and runs on your machine. `acp-voice setup kokoro` installs it with [uv](https://docs.astral.sh/uv/) into `~/.local/share/acp-voice/kokoro` (about 340 MB). It takes a few seconds to start speaking, so it works best with the Claude Code hook. With the proxy, each sentence reloads the model.
+- **`say`** (macOS) and **`espeak`** (Linux) start instantly but sound robotic. macOS Premium voices, which you download in System Settings → Accessibility → Spoken Content, sound much better.
+- **Anything else** goes in `tts`, for example [Piper](https://github.com/rhasspy/piper) (`piper --model en_US-amy-medium.onnx --output-raw | aplay -r 22050 -f S16_LE -t raw -`) or a small script that sends text to a cloud TTS service and plays the audio.
 
 ## Develop
 
@@ -85,7 +91,7 @@ Any command that reads text from stdin works:
 npm test
 ```
 
-No dependencies. All the code is in `acp-voice.js`.
+No dependencies. All the code is in `acp-voice.js`, plus `tts/kokoro.py` for the Kokoro voice.
 
 ## License
 
